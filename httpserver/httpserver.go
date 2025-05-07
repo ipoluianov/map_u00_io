@@ -142,7 +142,7 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reqType = parts[0]
 	}
 
-	if reqType == "data" {
+	if reqType == "get" {
 		if len(parts) < 2 {
 			w.WriteHeader(500)
 			w.Write([]byte("wrong request: api - missing argument"))
@@ -153,6 +153,17 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(result))
 		return
+	}
+
+	if reqType == "set" {
+		if len(parts) < 3 {
+			w.WriteHeader(500)
+			w.Write([]byte("wrong request: api - missing argument"))
+			return
+		}
+		pageCode := parts[1]
+		data := []byte(parts[2])
+		SetData(pageCode, data)
 	}
 
 	// STATIC HTML
