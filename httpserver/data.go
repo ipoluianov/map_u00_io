@@ -5,12 +5,10 @@ import (
 	"sync"
 )
 
-type Value []byte
-
 type Item struct {
 	Code    string
-	Data    Value
-	History []Value
+	Data    string
+	History []string
 }
 
 type Storage struct {
@@ -34,14 +32,14 @@ func init() {
 	storage = NewStorage()
 }
 
-func GetData(code string) []byte {
+func GetData(code string) string {
 	storage.mtx.Lock()
 	if data, ok := storage.data[code]; ok {
 		storage.mtx.Unlock()
 		return data.Data
 	}
 	storage.mtx.Unlock()
-	return nil
+	return ""
 }
 
 func GetHistory(code string) []byte {
@@ -54,7 +52,7 @@ func GetHistory(code string) []byte {
 	return result
 }
 
-func SetData(code string, data []byte) {
+func SetData(code string, data string) {
 	if len(data) > MaxDataSize {
 		return
 	}
@@ -66,7 +64,7 @@ func SetData(code string, data []byte) {
 		item := &Item{
 			Code:    code,
 			Data:    data,
-			History: make([]Value, 0),
+			History: make([]string, 0),
 		}
 		item.History = append(item.History, data)
 		storage.data[code] = item

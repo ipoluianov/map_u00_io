@@ -176,7 +176,7 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		pageCode := parts[1]
 		data := []byte(parts[2])
-		SetData(pageCode, data)
+		SetData(pageCode, string(data))
 		return
 	}
 
