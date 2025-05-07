@@ -3,12 +3,18 @@ package httpserver
 import (
 	"encoding/json"
 	"sync"
+	"time"
 )
+
+type Value struct {
+	DT   string `json:"dt"`
+	Data string `json:"data"`
+}
 
 type Item struct {
 	Code    string
-	Data    string
-	History []string
+	Data    Value
+	History []Value
 }
 
 type Storage struct {
@@ -17,7 +23,8 @@ type Storage struct {
 }
 
 const (
-	MaxDataSize = 1024
+	MaxDataSize    = 1024
+	MaxHistorySize = 100
 )
 
 func NewStorage() *Storage {
@@ -36,7 +43,7 @@ func GetData(code string) string {
 	storage.mtx.Lock()
 	if data, ok := storage.data[code]; ok {
 		storage.mtx.Unlock()
-		return data.Data
+		return data.Data.Data
 	}
 	storage.mtx.Unlock()
 	return ""
@@ -56,17 +63,24 @@ func SetData(code string, data string) {
 	if len(data) > MaxDataSize {
 		return
 	}
+	dt := time.Now().Format("2006-01-02 15:04:05")
 	storage.mtx.Lock()
 	if item, ok := storage.data[code]; ok {
 		item.History = append(item.History, item.Data)
-		item.Data = data
+		item.Data.DT = dt
+		item.Data.Data = data
+
+		if len(item.History) > MaxHistorySize {
+			item.History = item.History[len(item.History)-MaxHistorySize:]
+		}
 	} else {
+		value := Value{DT: dt, Data: data}
 		item := &Item{
 			Code:    code,
-			Data:    data,
-			History: make([]string, 0),
+			Data:    value,
+			History: make([]Value, 0),
 		}
-		item.History = append(item.History, data)
+		item.History = append(item.History, value)
 		storage.data[code] = item
 	}
 	storage.mtx.Unlock()
