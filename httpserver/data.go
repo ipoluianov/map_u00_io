@@ -1,10 +1,21 @@
 package httpserver
 
-import "sync"
+import (
+	"encoding/json"
+	"sync"
+)
+
+type Value []byte
+
+type Item struct {
+	Code    string
+	Data    Value
+	History []Value
+}
 
 type Storage struct {
 	mtx  sync.Mutex
-	data map[string][]byte
+	data map[string]*Item
 }
 
 const (
@@ -13,7 +24,7 @@ const (
 
 func NewStorage() *Storage {
 	var c Storage
-	c.data = make(map[string][]byte)
+	c.data = make(map[string]*Item)
 	return &c
 }
 
@@ -27,10 +38,21 @@ func GetData(code string) []byte {
 	storage.mtx.Lock()
 	if data, ok := storage.data[code]; ok {
 		storage.mtx.Unlock()
-		return data
+		return data.Data
 	}
 	storage.mtx.Unlock()
 	return nil
+}
+
+func GetHistory(code string) []byte {
+	result := make([]byte, 0)
+	storage.mtx.Lock()
+	if data, ok := storage.data[code]; ok {
+		result, _ = json.MarshalIndent(data.History, "", "  ")
+		storage.mtx.Unlock()
+	}
+	storage.mtx.Unlock()
+	return result
 }
 
 func SetData(code string, data []byte) {
@@ -38,6 +60,17 @@ func SetData(code string, data []byte) {
 		return
 	}
 	storage.mtx.Lock()
-	storage.data[code] = data
+	if item, ok := storage.data[code]; ok {
+		item.History = append(item.History, item.Data)
+		item.Data = data
+	} else {
+		item := &Item{
+			Code:    code,
+			Data:    data,
+			History: make([]Value, 0),
+		}
+		item.History = append(item.History, data)
+		storage.data[code] = item
+	}
 	storage.mtx.Unlock()
 }
