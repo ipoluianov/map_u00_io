@@ -49,7 +49,6 @@ func GetHistory(code string) []byte {
 	storage.mtx.Lock()
 	if data, ok := storage.data[code]; ok {
 		result, _ = json.MarshalIndent(data.History, "", "  ")
-		storage.mtx.Unlock()
 	}
 	storage.mtx.Unlock()
 	return result
