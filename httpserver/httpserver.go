@@ -59,7 +59,8 @@ func (c *HttpServer) thTest() {
 		item.Signature = utils.GenerateSignature(privateKey, []byte(item.Value))
 		bs, _ := json.Marshal(item)
 		hexData := hex.EncodeToString(bs)
-		http.Get("https://test.u00.io:8443/set-json-hex/" + hexData)
+		//http.Get("https://test.u00.io:8443/set-json-hex/" + hexData)
+		http.Get("https://map.u00.io/set-json-hex/" + hexData)
 		time.Sleep(1 * time.Second)
 	}
 }
