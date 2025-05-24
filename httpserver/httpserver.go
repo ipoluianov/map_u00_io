@@ -2,8 +2,12 @@ package httpserver
 
 import (
 	"crypto/tls"
+	"encoding/hex"
+	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/ipoluianov/gomisc/logger"
 	"github.com/ipoluianov/map_u00_io/utils"
@@ -28,6 +32,36 @@ func init() {
 func (c *HttpServer) Start() {
 	go c.thListen()
 	go c.thListenTLS()
+	go c.thTest()
+}
+
+func (c *HttpServer) thTest() {
+	logger.Println("HttpServer thTest begin")
+	privateKey, publicKey := utils.GenerateKeyPair()
+	logger.Println("HttpServer thTest privateKey:", privateKey)
+	logger.Println("HttpServer thTest publicKey:", publicKey)
+	logger.Println("HttpServer thTest publicKey hex:", "0x"+hex.EncodeToString(publicKey))
+	for {
+		/*var item Item
+		item.Address = "0x" + hex.EncodeToString(publicKey)
+		item.DT = time.Now().Format("2006-01-02 15:04:05")
+		item.Value = "test value " + item.DT
+		item.Signature = utils.GenerateSignature(privateKey, []byte(item.Value))
+		err := SetData(item)
+		if err != nil {
+			logger.Println("HttpServer thTest error:", err)
+		}*/
+
+		var item Item
+		item.Address = "0x" + hex.EncodeToString(publicKey)
+		item.DT = time.Now().Format("2006-01-02 15:04:05")
+		item.Value = "test value " + item.DT
+		item.Signature = utils.GenerateSignature(privateKey, []byte(item.Value))
+		bs, _ := json.Marshal(item)
+		hexData := hex.EncodeToString(bs)
+		http.Get("https://test.u00.io:8443/set-json-hex/" + hexData)
+		time.Sleep(1 * time.Second)
+	}
 }
 
 func (c *HttpServer) portHttp() string {
@@ -151,32 +185,44 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		pageCode := parts[1]
 		result := GetData(pageCode)
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(result))
+		w.Write(result)
 		return
 	}
 
-	if reqType == "history" {
+	if reqType == "get-addresses" {
+		var addresses []string
+		for address := range storage.items {
+			addresses = append(addresses, address)
+		}
+		slices.Sort(addresses)
+		result, _ = json.Marshal(addresses)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(result)
+		return
+	}
+
+	if reqType == "set-json-hex" {
 		if len(parts) < 2 {
 			w.WriteHeader(500)
 			w.Write([]byte("wrong request: api - missing argument"))
 			return
 		}
-		pageCode := parts[1]
-		result := GetHistory(pageCode)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(result))
-		return
-	}
-
-	if reqType == "set" {
-		if len(parts) < 3 {
+		hexData := parts[1]
+		data, err := hex.DecodeString(hexData)
+		if err != nil {
 			w.WriteHeader(500)
-			w.Write([]byte("wrong request: api - missing argument"))
+			w.Write([]byte("wrong request: api - hex decode error"))
 			return
 		}
-		pageCode := parts[1]
-		data := []byte(parts[2])
-		SetData(pageCode, string(data))
+		var item Item
+		err = json.Unmarshal(data, &item)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("wrong request: api - json decode error"))
+			return
+		}
+
+		SetData(item)
 		return
 	}
 

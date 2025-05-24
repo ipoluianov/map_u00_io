@@ -2,24 +2,22 @@ package httpserver
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
-	"time"
+
+	"github.com/ipoluianov/map_u00_io/utils"
 )
 
-type Value struct {
-	DT   string `json:"dt"`
-	Data string `json:"data"`
-}
-
 type Item struct {
-	Code    string
-	Data    Value
-	History []Value
+	Address   string `json:"a"`
+	DT        string `json:"t"`
+	Value     string `json:"v"`
+	Signature string `json:"s"`
 }
 
 type Storage struct {
-	mtx  sync.Mutex
-	data map[string]*Item
+	mtx   sync.Mutex
+	items map[string]*Item
 }
 
 const (
@@ -29,7 +27,7 @@ const (
 
 func NewStorage() *Storage {
 	var c Storage
-	c.data = make(map[string]*Item)
+	c.items = make(map[string]*Item)
 	return &c
 }
 
@@ -39,49 +37,37 @@ func init() {
 	storage = NewStorage()
 }
 
-func GetData(code string) string {
+func GetData(code string) []byte {
 	storage.mtx.Lock()
-	if data, ok := storage.data[code]; ok {
+	if item, ok := storage.items[code]; ok {
+		bs, _ := json.MarshalIndent(item, "", "  ")
 		storage.mtx.Unlock()
-		return data.Data.Data
+		return bs
 	}
 	storage.mtx.Unlock()
-	return ""
+	return nil
 }
 
-func GetHistory(code string) []byte {
-	result := make([]byte, 0)
-	storage.mtx.Lock()
-	if data, ok := storage.data[code]; ok {
-		result, _ = json.MarshalIndent(data.History, "", "  ")
+func SetData(item Item) error {
+	if len(item.Address) != 66 {
+		return errors.New("code length is not 66")
 	}
-	storage.mtx.Unlock()
-	return result
-}
 
-func SetData(code string, data string) {
-	if len(data) > MaxDataSize {
-		return
+	if len(item.Signature) != 2+128 {
+		return errors.New("signature length is not 130")
 	}
-	dt := time.Now().Format("2006-01-02 15:04:05")
-	storage.mtx.Lock()
-	if item, ok := storage.data[code]; ok {
-		item.History = append(item.History, item.Data)
-		item.Data.DT = dt
-		item.Data.Data = data
 
-		if len(item.History) > MaxHistorySize {
-			item.History = item.History[len(item.History)-MaxHistorySize:]
-		}
-	} else {
-		value := Value{DT: dt, Data: data}
-		item := &Item{
-			Code:    code,
-			Data:    value,
-			History: make([]Value, 0),
-		}
-		item.History = append(item.History, value)
-		storage.data[code] = item
+	if len(item.Value) > MaxDataSize {
+		return errors.New("data size too large")
 	}
+
+	verifyResult := utils.VerifySignature(item.Address, []byte(item.Value), item.Signature)
+	if !verifyResult {
+		return errors.New("signature verification failed")
+	}
+
+	storage.mtx.Lock()
+	storage.items[item.Address] = &item
 	storage.mtx.Unlock()
+	return nil
 }
