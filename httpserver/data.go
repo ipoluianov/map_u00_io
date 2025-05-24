@@ -9,10 +9,11 @@ import (
 )
 
 type Item struct {
-	Address   string `json:"a"`
-	DT        string `json:"t"`
-	Value     string `json:"v"`
-	Signature string `json:"s"`
+	Address     string `json:"a"`
+	DisplayName string `json:"d"`
+	DT          string `json:"t"`
+	Value       string `json:"v"`
+	Signature   string `json:"s"`
 }
 
 type Storage struct {
