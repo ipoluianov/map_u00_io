@@ -22,8 +22,8 @@ type Storage struct {
 }
 
 const (
-	MaxDataSize    = 1024
-	MaxHistorySize = 100
+	MaxDataSize    = 10 * 1024
+	MaxHistorySize = 10
 )
 
 func NewStorage() *Storage {
@@ -68,7 +68,9 @@ func SetData(item Item) error {
 	}
 
 	storage.mtx.Lock()
-	storage.items[item.Address] = &item
+	if len(storage.items) < 1000 {
+		storage.items[item.Address] = &item
+	}
 	storage.mtx.Unlock()
 	return nil
 }
