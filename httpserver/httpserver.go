@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -33,6 +34,7 @@ func (c *HttpServer) Start() {
 	go c.thListen()
 	go c.thListenTLS()
 	go c.thTest()
+	go c.thTestRandom()
 }
 
 func (c *HttpServer) thTest() {
@@ -42,21 +44,34 @@ func (c *HttpServer) thTest() {
 	logger.Println("HttpServer thTest publicKey:", publicKey)
 	logger.Println("HttpServer thTest publicKey hex:", "0x"+hex.EncodeToString(publicKey))
 	for {
-		/*var item Item
-		item.Address = "0x" + hex.EncodeToString(publicKey)
-		item.DT = time.Now().Format("2006-01-02 15:04:05")
-		item.Value = "test value " + item.DT
-		item.Signature = utils.GenerateSignature(privateKey, []byte(item.Value))
-		err := SetData(item)
-		if err != nil {
-			logger.Println("HttpServer thTest error:", err)
-		}*/
-
 		var item Item
 		item.Address = "0x" + hex.EncodeToString(publicKey)
 		item.DisplayName = "Test Data"
 		item.DT = time.Now().Format("2006-01-02 15:04:05")
 		item.Value = "test value " + item.DT
+		item.Signature = utils.GenerateSignature(privateKey, []byte(item.Value))
+		bs, _ := json.Marshal(item)
+		hexData := hex.EncodeToString(bs)
+		//http.Get("https://test.u00.io:8443/set-json-hex/" + hexData)
+		http.Get("https://map.u00.io/set-json-hex/" + hexData)
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func (c *HttpServer) thTestRandom() {
+	logger.Println("HttpServer thTest begin")
+	privateKey, publicKey := utils.GenerateKeyPair()
+	logger.Println("HttpServer thTest privateKey:", privateKey)
+	logger.Println("HttpServer thTest publicKey:", publicKey)
+	logger.Println("HttpServer thTest publicKey hex:", "0x"+hex.EncodeToString(publicKey))
+	for {
+		rndBytes := make([]byte, 256)
+		rand.Read(rndBytes)
+		var item Item
+		item.Address = "0x" + hex.EncodeToString(publicKey)
+		item.DisplayName = "Test Data"
+		item.DT = time.Now().Format("2006-01-02 15:04:05")
+		item.Value = hex.EncodeToString(rndBytes)
 		item.Signature = utils.GenerateSignature(privateKey, []byte(item.Value))
 		bs, _ := json.Marshal(item)
 		hexData := hex.EncodeToString(bs)
