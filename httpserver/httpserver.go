@@ -224,7 +224,12 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		SetData(item)
+		err = SetData(item)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("wrong request: api - " + err.Error()))
+			return
+		}
 		return
 	}
 
