@@ -116,8 +116,6 @@ func (c *HttpServer) thTest() {
 	for {
 		cl.WriteValue("Debug Info", time.Now(), c.BuildDebugInfo())
 		time.Sleep(1 * time.Second)
-		cl.ReadValue(cl.Address())
-		time.Sleep(1 * time.Second)
 	}
 }
 
