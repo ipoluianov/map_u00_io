@@ -65,6 +65,9 @@ func (c *U00Client) WriteValue(name string, dt time.Time, value string) error {
 		return errors.New("private key is not set or public key is empty")
 	}
 
+	domain := hex.EncodeToString(c.publicKey[:1])
+	domain = domain[:1]
+
 	var err error
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
@@ -98,7 +101,7 @@ func (c *U00Client) WriteValue(name string, dt time.Time, value string) error {
 	copy(frame[32:32+64], signature)
 	copy(frame[32+64:], zipFileContent)
 
-	respBS, status, err := c.sendPostBytes("https://map.u00.io/set", frame, "application/octet-stream")
+	respBS, status, err := c.sendPostBytes("https://s"+domain+".u00.io/set", frame, "application/octet-stream")
 	if err != nil {
 		logger.Println("U00Client WriteValue error:", err, respBS, status)
 		return err
@@ -114,7 +117,10 @@ func (c *U00Client) ReadValue(address string) (value []byte, err error) {
 		return nil, errors.New("public key is not set or invalid")
 	}
 
-	bs, err := http.Get("https://map.u00.io/get/" + address)
+	domain := hex.EncodeToString(c.publicKey[:1])
+	domain = domain[:1]
+
+	bs, err := http.Get("https://s" + domain + ".u00.io/get/" + address)
 	if err != nil {
 		logger.Println("U00Client ReadValue error:", err)
 		return nil, err
