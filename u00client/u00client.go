@@ -69,11 +69,21 @@ func (c *U00Client) WriteValue(dt time.Time, value string) error {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 	var zipFile io.Writer
-	zipFile, err = zipWriter.Create("value")
-	if err == nil {
-		zipFile.Write([]byte(value))
+	{
+		zipFile, err = zipWriter.Create("value")
+		if err == nil {
+			zipFile.Write([]byte(value))
+		}
+		zipWriter.Close()
 	}
-	zipWriter.Close()
+	{
+		value = dt.Format("2006-01-02 15:04:05.000")
+		zipFile, err = zipWriter.Create("time")
+		if err == nil {
+			zipFile.Write([]byte(value))
+		}
+		zipWriter.Close()
+	}
 	zipFileContent := buf.Bytes()
 
 	signature := ed25519.Sign(c.privateKey, zipFileContent)
