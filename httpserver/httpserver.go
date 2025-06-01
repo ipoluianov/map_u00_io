@@ -114,7 +114,7 @@ func (c *HttpServer) thTest() {
 	cl := u00client.NewClient()
 	fmt.Println("HttpServer thTest begin", cl.Address())
 	for {
-		cl.WriteValue(time.Now(), c.BuildDebugInfo())
+		cl.WriteValue("Debug Info", time.Now(), c.BuildDebugInfo())
 		time.Sleep(1 * time.Second)
 		cl.ReadValue(cl.Address())
 		time.Sleep(1 * time.Second)
@@ -307,7 +307,6 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		pageCode := parts[1]
 		result := GetData(pageCode)
-		logger.Println("GetData for code:", pageCode, "result size:", len(result))
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Write(result)
 		return

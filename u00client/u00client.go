@@ -60,7 +60,7 @@ func (c *U00Client) sendPostBytes(url string, data []byte, contentType string) (
 	return body, resp.StatusCode, nil
 }
 
-func (c *U00Client) WriteValue(dt time.Time, value string) error {
+func (c *U00Client) WriteValue(name string, dt time.Time, value string) error {
 	if len(c.privateKey) != 64 || len(c.publicKey) != 32 {
 		return errors.New("private key is not set or public key is empty")
 	}
@@ -73,6 +73,12 @@ func (c *U00Client) WriteValue(dt time.Time, value string) error {
 		zipFile, err = zipWriter.Create("value")
 		if err == nil {
 			zipFile.Write([]byte(value))
+		}
+	}
+	{
+		zipFile, err = zipWriter.Create("name")
+		if err == nil {
+			zipFile.Write([]byte(name))
 		}
 	}
 	{
