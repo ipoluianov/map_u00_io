@@ -256,6 +256,7 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ip = parts[0]
 		}
 		cl := c.getClient(ip)
+		cl.LastSeen = time.Now()
 		if !cl.Allow() {
 			logger.Println("Rate limit exceeded for IP:", ip)
 
