@@ -1,11 +1,10 @@
 package httpserver
 
 import (
-	"crypto/rand"
 	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ipoluianov/gomisc/logger"
+	"github.com/ipoluianov/map_u00_io/u00client"
 	"github.com/ipoluianov/map_u00_io/utils"
 	"golang.org/x/time/rate"
 )
@@ -54,7 +54,8 @@ func (c *HttpServer) Start() {
 	go c.thListen()
 	go c.thListenTLS()
 	go c.thTest()
-	go c.thTestRandom()
+	//go c.thTest()
+	//go c.thTestRandom()
 	go c.cleanupClients()
 }
 
@@ -110,6 +111,17 @@ func (c *HttpServer) BuildDebugInfo() string {
 }
 
 func (c *HttpServer) thTest() {
+	cl := u00client.NewClient()
+	fmt.Println("HttpServer thTest begin", cl.Address())
+	for {
+		cl.WriteValue(time.Now(), c.BuildDebugInfo())
+		time.Sleep(1 * time.Second)
+		cl.ReadValue(cl.Address())
+		time.Sleep(1 * time.Second)
+	}
+}
+
+/*func (c *HttpServer) thTest() {
 	logger.Println("HttpServer thTest begin")
 	privateKey, publicKey := utils.GenerateKeyPair()
 	logger.Println("HttpServer thTest privateKey:", privateKey)
@@ -151,7 +163,7 @@ func (c *HttpServer) thTestRandom() {
 		http.Get("https://map.u00.io/set-json-hex/" + hexData)
 		time.Sleep(1 * time.Second)
 	}
-}
+}*/
 
 func (c *HttpServer) portHttp() string {
 	if utils.IsRoot() {
@@ -295,8 +307,26 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		pageCode := parts[1]
 		result := GetData(pageCode)
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Write(result)
+		return
+	}
+
+	if reqType == "set" {
+		bs, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("wrong request: api - read body error"))
+			return
+		}
+
+		err = SetData(bs)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("wrong request: api - " + err.Error()))
+			return
+		}
+		w.WriteHeader(200)
 		return
 	}
 
@@ -312,7 +342,7 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if reqType == "set-json-hex" {
+	/*if reqType == "set-json-hex" {
 		if len(parts) < 2 {
 			w.WriteHeader(500)
 			w.Write([]byte("wrong request: api - missing argument"))
@@ -340,7 +370,7 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		return
-	}
+	}*/
 
 	// STATIC HTML
 	html := string("123")

@@ -1,19 +1,16 @@
 package httpserver
 
 import (
-	"encoding/json"
+	"crypto/ed25519"
+	"encoding/hex"
 	"errors"
 	"sync"
-
-	"github.com/ipoluianov/map_u00_io/utils"
 )
 
 type Item struct {
-	Address     string `json:"a"`
-	DisplayName string `json:"d"`
-	DT          string `json:"t"`
-	Value       string `json:"v"`
-	Signature   string `json:"s"`
+	Address   []byte `json:"address"`
+	Data      []byte `json:"data"`
+	Signature []byte `json:"signature"`
 }
 
 type Storage struct {
@@ -41,7 +38,7 @@ func init() {
 func GetData(code string) []byte {
 	storage.mtx.Lock()
 	if item, ok := storage.items[code]; ok {
-		bs, _ := json.MarshalIndent(item, "", "  ")
+		bs := item.Data
 		storage.mtx.Unlock()
 		return bs
 	}
@@ -49,27 +46,30 @@ func GetData(code string) []byte {
 	return nil
 }
 
-func SetData(item Item) error {
-	if len(item.Address) != 66 {
-		return errors.New("code length is not 66")
+func SetData(bs []byte) error {
+	if len(bs) < 32+64 {
+		return errors.New("data too short")
 	}
 
-	if len(item.Signature) != 2+128 {
-		return errors.New("signature length is not 130")
-	}
+	address := bs[:32]
+	signature := bs[32:96]
+	value := bs[96:]
 
-	if len(item.Value) > MaxDataSize {
-		return errors.New("data size too large")
-	}
-
-	verifyResult := utils.VerifySignature(item.Address, []byte(item.DT+item.Value), item.Signature)
+	verifyResult := ed25519.Verify(address, value, signature)
 	if !verifyResult {
-		return errors.New("signature verification failed")
+		return errors.New("invalid signature")
 	}
 
+	item := Item{
+		Address:   address,
+		Data:      value,
+		Signature: signature,
+	}
+
+	addressHex := "0x" + hex.EncodeToString(address)
 	storage.mtx.Lock()
 	if len(storage.items) < 1000 {
-		storage.items[item.Address] = &item
+		storage.items[addressHex] = &item
 	}
 	storage.mtx.Unlock()
 	return nil
