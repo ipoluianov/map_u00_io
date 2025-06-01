@@ -62,7 +62,7 @@ func SetData(item Item) error {
 		return errors.New("data size too large")
 	}
 
-	verifyResult := utils.VerifySignature(item.Address, []byte(item.Value), item.Signature)
+	verifyResult := utils.VerifySignature(item.Address, []byte(item.DT+item.Value), item.Signature)
 	if !verifyResult {
 		return errors.New("signature verification failed")
 	}

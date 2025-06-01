@@ -72,7 +72,7 @@ func (c *HttpServer) thTestRandom() {
 		item.DisplayName = "Encrypted Data"
 		item.DT = time.Now().Format("2006-01-02 15:04:05")
 		item.Value = hex.EncodeToString(rndBytes)
-		item.Signature = utils.GenerateSignature(privateKey, []byte(item.Value))
+		item.Signature = utils.GenerateSignature(privateKey, []byte(item.DT+item.Value))
 		bs, _ := json.Marshal(item)
 		hexData := hex.EncodeToString(bs)
 		//http.Get("https://test.u00.io:8443/set-json-hex/" + hexData)
