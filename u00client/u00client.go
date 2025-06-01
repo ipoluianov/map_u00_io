@@ -60,13 +60,44 @@ func (c *U00Client) sendPostBytes(url string, data []byte, contentType string) (
 	return body, resp.StatusCode, nil
 }
 
+func (c *U00Client) writeValueToServer(url string, data []byte) error {
+	respBS, status, err := c.sendPostBytes(url, data, "application/octet-stream")
+	if err != nil {
+		logger.Println("U00Client WriteValue error:", err, respBS, status)
+		return err
+	}
+	if status != http.StatusOK {
+		logger.Println("U00Client WriteValue error: status", status, "response:", string(respBS))
+		return errors.New("server returned status " + http.StatusText(status))
+	}
+	logger.Println("U00Client WriteValue success:", url, "response:", string(respBS))
+	return nil
+}
+
+func (c *U00Client) getNextDomain(domain string) string {
+	if len(domain) == 0 {
+		return "0"
+	}
+	nextDomain := ""
+	switch domain[0] {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8':
+		nextDomain = string(domain[0] + 1)
+	case '9':
+		nextDomain = "a"
+	case 'a', 'b', 'c', 'd', 'e':
+		nextDomain = string(domain[0] + 1)
+	case 'f':
+		nextDomain = "0"
+	default:
+		return ""
+	}
+	return nextDomain
+}
+
 func (c *U00Client) WriteValue(name string, dt time.Time, value string) error {
 	if len(c.privateKey) != 64 || len(c.publicKey) != 32 {
 		return errors.New("private key is not set or public key is empty")
 	}
-
-	domain := hex.EncodeToString(c.publicKey[:1])
-	domain = domain[:1]
 
 	var err error
 	buf := new(bytes.Buffer)
@@ -101,13 +132,12 @@ func (c *U00Client) WriteValue(name string, dt time.Time, value string) error {
 	copy(frame[32:32+64], signature)
 	copy(frame[32+64:], zipFileContent)
 
-	respBS, status, err := c.sendPostBytes("https://s"+domain+".u00.io/set", frame, "application/octet-stream")
-	if err != nil {
-		logger.Println("U00Client WriteValue error:", err, respBS, status)
-		return err
-	}
+	domain1 := hex.EncodeToString(c.publicKey[:1])
+	domain1 = domain1[:1]
+	domain2 := c.getNextDomain(domain1)
 
-	logger.Println("U00Client WriteValue response:", string(respBS), status)
+	c.writeValueToServer("https://s"+domain1+".u00.io/set", frame)
+	c.writeValueToServer("https://s"+domain2+".u00.io/set", frame)
 
 	return nil
 }
