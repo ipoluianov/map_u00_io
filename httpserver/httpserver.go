@@ -47,7 +47,7 @@ func (c *HttpServer) thTest() {
 		var item Item
 		item.Address = "0x" + hex.EncodeToString(publicKey)
 		item.DisplayName = "Test Data"
-		item.DT = time.Now().Format("2006-01-02 15:04:05")
+		item.DT = time.Now().Format("2006-01-02 15:04:05.000")
 		item.Value = "test value " + item.DT
 		item.Signature = utils.GenerateSignature(privateKey, []byte(item.DT+item.Value))
 		bs, _ := json.Marshal(item)
@@ -70,7 +70,7 @@ func (c *HttpServer) thTestRandom() {
 		var item Item
 		item.Address = "0x" + hex.EncodeToString(publicKey)
 		item.DisplayName = "Encrypted Data"
-		item.DT = time.Now().Format("2006-01-02 15:04:05")
+		item.DT = time.Now().Format("2006-01-02 15:04:05.000")
 		item.Value = hex.EncodeToString(rndBytes)
 		item.Signature = utils.GenerateSignature(privateKey, []byte(item.DT+item.Value))
 		bs, _ := json.Marshal(item)
