@@ -179,7 +179,11 @@ func (c *HttpServer) portHttps() string {
 
 func (c *HttpServer) thListen() {
 	c.srv = &http.Server{
-		Addr: c.portHttp(),
+		Addr:           c.portHttp(),
+		ReadTimeout:    1 * time.Second,
+		WriteTimeout:   1 * time.Second,
+		IdleTimeout:    5 * time.Second,
+		MaxHeaderBytes: 10 * 1024,
 	}
 
 	c.srv.Handler = c
@@ -212,8 +216,12 @@ func (c *HttpServer) thListenTLS() {
 
 	serverAddress := c.portHttps()
 	c.srvTLS = &http.Server{
-		Addr:      serverAddress,
-		TLSConfig: tlsConfig,
+		Addr:           serverAddress,
+		TLSConfig:      tlsConfig,
+		ReadTimeout:    3 * time.Second,
+		WriteTimeout:   1 * time.Second,
+		IdleTimeout:    5 * time.Second,
+		MaxHeaderBytes: 10 * 1024,
 	}
 	c.srvTLS.Handler = c
 
@@ -234,7 +242,7 @@ func (c *HttpServer) thListenTLS() {
 }
 
 func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 100*1024)
+	r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
 
 	if r.TLS == nil {
 		logger.Println("ProcessHTTP host: ", r.Host)
@@ -340,39 +348,7 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*if reqType == "set-json-hex" {
-		if len(parts) < 2 {
-			w.WriteHeader(500)
-			w.Write([]byte("wrong request: api - missing argument"))
-			return
-		}
-		hexData := parts[1]
-		data, err := hex.DecodeString(hexData)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte("wrong request: api - hex decode error"))
-			return
-		}
-		var item Item
-		err = json.Unmarshal(data, &item)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte("wrong request: api - json decode error"))
-			return
-		}
-
-		err = SetData(item)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte("wrong request: api - " + err.Error()))
-			return
-		}
-		return
-	}*/
-
-	// STATIC HTML
-	html := string("123")
-	html = strings.ReplaceAll(html, "%CONTENT%", "UNKNOWN QUERY")
-	result = []byte(html)
-	w.Write(result)
+	w.WriteHeader(404)
+	w.Write([]byte("Not Found"))
+	logger.Println("HttpServer::ServeHTTP - unknown request type:", reqType)
 }
