@@ -224,6 +224,8 @@ func (c *HttpServer) thListenTLS() {
 }
 
 func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 100*1024)
+
 	if r.TLS == nil {
 		logger.Println("ProcessHTTP host: ", r.Host)
 		w.Header().Set("Access-Control-Allow-Origin", "*")
