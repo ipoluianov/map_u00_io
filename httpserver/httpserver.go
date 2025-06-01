@@ -46,7 +46,7 @@ func init() {
 func NewClient(remoteAddr string) *Client {
 	return &Client{
 		RemoteAddr: remoteAddr,
-		Limiter:    rate.NewLimiter(2, 20), // 1 request per second, burst size of 10
+		Limiter:    rate.NewLimiter(4, 20), // 1 request per second, burst size of 10
 	}
 }
 
