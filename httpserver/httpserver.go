@@ -307,6 +307,7 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		pageCode := parts[1]
 		result := GetData(pageCode)
+		logger.Println("GetData for code:", pageCode, "result size:", len(result))
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Write(result)
 		return
