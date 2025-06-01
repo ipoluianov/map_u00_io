@@ -5,24 +5,37 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ipoluianov/gomisc/logger"
 	"github.com/ipoluianov/map_u00_io/utils"
+	"golang.org/x/time/rate"
 )
 
 var Instance *HttpServer
 
+type Client struct {
+	mtx        sync.Mutex
+	RemoteAddr string
+	LastSeen   time.Time
+	Limiter    *rate.Limiter
+}
+
 type HttpServer struct {
-	srv    *http.Server
-	srvTLS *http.Server
+	srv        *http.Server
+	srvTLS     *http.Server
+	clients    map[string]*Client
+	mtxClients sync.Mutex
 }
 
 func NewHttpServer() *HttpServer {
 	var c HttpServer
+	c.clients = make(map[string]*Client)
 	return &c
 }
 
@@ -30,11 +43,64 @@ func init() {
 	Instance = NewHttpServer()
 }
 
+func NewClient(remoteAddr string) *Client {
+	return &Client{
+		RemoteAddr: remoteAddr,
+		Limiter:    rate.NewLimiter(2, 10), // 1 request per second, burst size of 10
+	}
+}
+
 func (c *HttpServer) Start() {
 	go c.thListen()
 	go c.thListenTLS()
 	go c.thTest()
 	go c.thTestRandom()
+	go c.cleanupClients()
+}
+
+func (c *Client) Allow() bool {
+	c.mtx.Lock()
+	result := c.Limiter.Allow()
+	c.mtx.Unlock()
+	return result
+}
+
+func (c *HttpServer) getClient(ip string) *Client {
+	c.mtxClients.Lock()
+	limiter, exists := c.clients[ip]
+	if !exists {
+		limiter = NewClient(ip)
+		c.clients[ip] = limiter
+	}
+	c.mtxClients.Unlock()
+	return limiter
+}
+
+func (c *HttpServer) cleanupClients() {
+	for {
+		time.Sleep(1 * time.Second)
+		c.mtxClients.Lock()
+		for ip, client := range c.clients {
+			if time.Since(client.LastSeen) > 1*time.Minute {
+				logger.Println("Removing inactive client:", ip)
+				delete(c.clients, ip)
+			}
+		}
+
+		c.mtxClients.Unlock()
+	}
+}
+
+func (c *HttpServer) BuildDebugInfo() string {
+	c.mtxClients.Lock()
+	info := "HttpServer Debug Info:\n"
+	info += "Number of clients: " + fmt.Sprint((len(c.clients))) + "\n"
+	info += "Clients:\n"
+	for ip, client := range c.clients {
+		info += "  IP: " + ip + ", Last Seen: " + client.LastSeen.UTC().Format("2006-01-02 15:04:05.000") + "\n"
+	}
+	c.mtxClients.Unlock()
+	return info
 }
 
 func (c *HttpServer) thTest() {
@@ -47,7 +113,7 @@ func (c *HttpServer) thTest() {
 		var item Item
 		item.Address = "0x" + hex.EncodeToString(publicKey)
 		item.DisplayName = "Test Data"
-		item.DT = time.Now().Format("2006-01-02 15:04:05.000")
+		item.DT = time.Now().UTC().Format("2006-01-02 15:04:05.000")
 		item.Value = "test value " + item.DT
 		item.Signature = utils.GenerateSignature(privateKey, []byte(item.DT+item.Value))
 		bs, _ := json.Marshal(item)
@@ -180,6 +246,25 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		return
 	}
+
+	////////////////////////////////////////
+	// Rate limiting
+	{
+		ip := r.RemoteAddr
+		parts := strings.Split(ip, ":")
+		if len(parts) > 0 {
+			ip = parts[0]
+		}
+		cl := c.getClient(ip)
+		if !cl.Allow() {
+			logger.Println("Rate limit exceeded for IP:", ip)
+
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte("Too many requests, please try again later."))
+			return
+		}
+	}
+	////////////////////////////////////////
 
 	parts := strings.FieldsFunc(r.RequestURI, func(r rune) bool {
 		return r == '/'
