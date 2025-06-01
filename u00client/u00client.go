@@ -83,7 +83,7 @@ func (c *U00Client) WriteValue(dt time.Time, value string) error {
 	copy(frame[32:32+64], signature)
 	copy(frame[32+64:], zipFileContent)
 
-	respBS, status, err := c.sendPostBytes("https://test.u00.io:8443/set", frame, "application/octet-stream")
+	respBS, status, err := c.sendPostBytes("https://map.u00.io/set", frame, "application/octet-stream")
 	if err != nil {
 		logger.Println("U00Client WriteValue error:", err, respBS, status)
 		return err
@@ -99,7 +99,7 @@ func (c *U00Client) ReadValue(address string) (value []byte, err error) {
 		return nil, errors.New("public key is not set or invalid")
 	}
 
-	bs, err := http.Get("https://test.u00.io:8443/get/" + address)
+	bs, err := http.Get("https://map.u00.io/get/" + address)
 	if err != nil {
 		logger.Println("U00Client ReadValue error:", err)
 		return nil, err
