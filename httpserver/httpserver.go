@@ -96,8 +96,14 @@ func (c *HttpServer) BuildDebugInfo() string {
 	info := "HttpServer Debug Info:\n"
 	info += "Number of clients: " + fmt.Sprint((len(c.clients))) + "\n"
 	info += "Clients:\n"
-	for ip, client := range c.clients {
-		info += "  IP: " + ip + ", Last Seen: " + client.LastSeen.UTC().Format("2006-01-02 15:04:05.000") + "\n"
+	ips := make([]string, 0)
+	for ip := range c.clients {
+		ips = append(ips, ip)
+	}
+	slices.Sort(ips)
+	for _, ip := range ips {
+		client := c.clients[ip]
+		info += fmt.Sprintf("  IP: %s, Last Seen: %s\n", ip, client.LastSeen.UTC().Format("2006-01-02 15:04:05.000"))
 	}
 	c.mtxClients.Unlock()
 	return info
